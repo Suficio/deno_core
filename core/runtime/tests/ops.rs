@@ -43,10 +43,11 @@ async fn test_async_opstate_borrow() {
     ops = [op_async_borrow],
     state = |state| state.put(InnerState(42))
   );
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, op_driver_poll_task) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
+  deno_unsync::spawn(op_driver_poll_task);
 
   runtime
     .execute_script(
@@ -74,7 +75,7 @@ async fn test_sync_op_serialize_object_with_numbers_as_keys() {
     test_ext,
     ops = [op_sync_serialize_object_with_numbers_as_keys]
   );
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -116,7 +117,7 @@ async fn test_async_op_serialize_object_with_numbers_as_keys() {
     test_ext,
     ops = [op_async_serialize_object_with_numbers_as_keys]
   );
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -151,7 +152,7 @@ fn test_op_return_serde_v8_error() {
   }
 
   deno_core::extension!(test_ext, ops = [op_err]);
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -177,7 +178,7 @@ fn test_op_high_arity() {
   }
 
   deno_core::extension!(test_ext, ops = [op_add_4]);
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -201,7 +202,7 @@ fn test_op_disabled() {
   }
 
   deno_core::extension!(test_ext, ops_fn = ops);
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -228,7 +229,7 @@ fn test_op_detached_buffer() {
   }
 
   deno_core::extension!(test_ext, ops = [op_sum_take, op_boomerang]);
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -309,7 +310,7 @@ fn duplicate_op_names() {
   }
 
   deno_core::extension!(test_ext, ops = [a::op_test, op_test]);
-  JsRuntime::new(RuntimeOptions {
+  let _ = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -330,7 +331,7 @@ fn ops_in_js_have_proper_names() {
   }
 
   deno_core::extension!(test_ext, ops = [op_test_sync, op_test_async]);
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     ..Default::default()
   });
@@ -497,11 +498,12 @@ await op_void_async_deferred();
     ),
   ]);
 
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, op_driver_poll_task) = JsRuntime::new(RuntimeOptions {
     module_loader: Some(Rc::new(loader)),
     extensions: vec![testing::init_ops()],
     ..Default::default()
   });
+  deno_unsync::spawn(op_driver_poll_task);
 
   let id = runtime
     .load_main_es_module(&Url::parse("http://x/main.js").unwrap())
@@ -612,7 +614,7 @@ pub async fn test_op_metrics() {
   let out = Rc::new(RefCell::new(vec![]));
 
   let out_clone = out.clone();
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, op_driver_poll_task) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     op_metrics_factory_fn: Some(Box::new(move |_, _, op| {
       let name = op.name;
@@ -628,6 +630,7 @@ pub async fn test_op_metrics() {
     })),
     ..Default::default()
   });
+  deno_unsync::spawn(op_driver_poll_task);
 
   let promise = runtime
   .execute_script(
@@ -693,13 +696,14 @@ pub async fn test_op_metrics_summary_tracker() {
   let op_enabled = |op: &OpDecl| {
     op.name.starts_with("op_async") || op.name.starts_with("op_sync")
   };
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, op_driver_poll_task) = JsRuntime::new(RuntimeOptions {
     extensions: vec![test_ext::init_ops()],
     op_metrics_factory_fn: Some(
       tracker.clone().op_metrics_factory_fn(op_enabled),
     ),
     ..Default::default()
   });
+  deno_unsync::spawn(op_driver_poll_task);
 
   let promise = runtime
   .execute_script(

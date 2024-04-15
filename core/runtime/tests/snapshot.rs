@@ -15,13 +15,13 @@ use self::runtime::CreateSnapshotOptions;
 #[test]
 fn will_snapshot() {
   let snapshot = {
-    let mut runtime = JsRuntimeForSnapshot::new(Default::default());
+    let (mut runtime, _) = JsRuntimeForSnapshot::new(Default::default());
     runtime.execute_script("a.js", "a = 1 + 2").unwrap();
     runtime.snapshot()
   };
 
   let snapshot = Box::leak(snapshot);
-  let mut runtime2 = JsRuntime::new(RuntimeOptions {
+  let (mut runtime2, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     ..Default::default()
   });
@@ -33,13 +33,13 @@ fn will_snapshot() {
 #[test]
 fn will_snapshot2() {
   let startup_data = {
-    let mut runtime = JsRuntimeForSnapshot::new(Default::default());
+    let (mut runtime, _) = JsRuntimeForSnapshot::new(Default::default());
     runtime.execute_script("a.js", "let a = 1 + 2").unwrap();
     runtime.snapshot()
   };
 
   let snapshot = Box::leak(startup_data);
-  let mut runtime = JsRuntimeForSnapshot::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntimeForSnapshot::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     ..Default::default()
   });
@@ -54,7 +54,7 @@ fn will_snapshot2() {
 
   let snapshot = Box::leak(startup_data);
   {
-    let mut runtime = JsRuntime::new(RuntimeOptions {
+    let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
       startup_snapshot: Some(snapshot),
       ..Default::default()
     });
@@ -70,7 +70,7 @@ fn will_snapshot2() {
 #[test]
 fn test_snapshot_callbacks() {
   let snapshot = {
-    let mut runtime = JsRuntimeForSnapshot::new(Default::default());
+    let (mut runtime, _) = JsRuntimeForSnapshot::new(Default::default());
     runtime
       .execute_script(
         "a.js",
@@ -92,7 +92,7 @@ fn test_snapshot_callbacks() {
   };
 
   let snapshot = Box::leak(snapshot);
-  let mut runtime2 = JsRuntime::new(RuntimeOptions {
+  let (mut runtime2, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     ..Default::default()
   });
@@ -104,13 +104,13 @@ fn test_snapshot_callbacks() {
 #[test]
 fn test_from_snapshot() {
   let snapshot = {
-    let mut runtime = JsRuntimeForSnapshot::new(Default::default());
+    let (mut runtime, _) = JsRuntimeForSnapshot::new(Default::default());
     runtime.execute_script("a.js", "a = 1 + 2").unwrap();
     runtime.snapshot()
   };
 
   let snapshot = Box::leak(snapshot);
-  let mut runtime2 = JsRuntime::new(RuntimeOptions {
+  let (mut runtime2, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     ..Default::default()
   });
@@ -139,7 +139,7 @@ fn test_snapshot_creator() {
 
   let snapshot = Box::leak(output.output);
 
-  let mut runtime2 = JsRuntime::new(RuntimeOptions {
+  let (mut runtime2, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     ..Default::default()
   });
@@ -176,7 +176,7 @@ fn test_snapshot_creator_warmup() {
 
   let snapshot = Box::leak(output.output);
 
-  let mut runtime2 = JsRuntime::new(RuntimeOptions {
+  let (mut runtime2, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     ..Default::default()
   });
@@ -237,7 +237,7 @@ fn es_snapshot() {
     Ok(String::from("test"))
   }
 
-  let mut runtime = JsRuntimeForSnapshot::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntimeForSnapshot::new(RuntimeOptions {
     extensions: vec![Extension {
       name: "test_ext",
       ops: Cow::Borrowed(&[op_test::DECL]),
@@ -274,7 +274,7 @@ fn es_snapshot() {
   let snapshot = runtime.snapshot();
   let snapshot = Box::leak(snapshot);
 
-  let mut runtime2 = JsRuntimeForSnapshot::new(RuntimeOptions {
+  let (mut runtime2, _) = JsRuntimeForSnapshot::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     extensions: vec![Extension {
       name: "test_ext",
@@ -294,7 +294,7 @@ fn es_snapshot() {
   let snapshot2 = runtime2.snapshot();
   let snapshot2 = Box::leak(snapshot2);
 
-  let mut runtime3 = JsRuntime::new(RuntimeOptions {
+  let (mut runtime3, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot2),
     extensions: vec![Extension {
       name: "test_ext",
@@ -331,7 +331,7 @@ pub(crate) fn es_snapshot_without_runtime_module_loader() {
         { source = "globalThis.TEST = 'foo'; export const TEST = 'bar';" },]
     );
 
-    let runtime = JsRuntimeForSnapshot::new(RuntimeOptions {
+    let (runtime, _) = JsRuntimeForSnapshot::new(RuntimeOptions {
       extensions: vec![module_snapshot::init_ops_and_esm()],
       ..Default::default()
     });
@@ -341,7 +341,7 @@ pub(crate) fn es_snapshot_without_runtime_module_loader() {
 
   let snapshot = Box::leak(startup_data);
 
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     module_loader: None,
     startup_snapshot: Some(snapshot),
     ..Default::default()
@@ -426,7 +426,7 @@ pub fn snapshot_with_additional_extensions() {
   );
 
   let snapshot = {
-    let runtime = JsRuntimeForSnapshot::new(RuntimeOptions {
+    let (runtime, _) = JsRuntimeForSnapshot::new(RuntimeOptions {
       extensions: vec![before_snapshot::init_ops_and_esm()],
       ..Default::default()
     });
@@ -434,7 +434,7 @@ pub fn snapshot_with_additional_extensions() {
     Box::leak(runtime.snapshot())
   };
 
-  let mut runtime = JsRuntime::new(RuntimeOptions {
+  let (mut runtime, _) = JsRuntime::new(RuntimeOptions {
     startup_snapshot: Some(snapshot),
     extensions: vec![
       before_snapshot::init_ops(),
