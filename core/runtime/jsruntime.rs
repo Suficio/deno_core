@@ -337,6 +337,7 @@ pub(crate) const NO_OF_BUILTIN_MODULES: usize = 2;
 pub struct JsRuntime {
   pub(crate) inner: InnerIsolateState,
   pub(crate) allocations: IsolateAllocations,
+  op_driver_poll_task: Pin<Box<dyn Future<Output = ()> + 'static>>,
   // Contains paths of source files that were executed in
   // [`JsRuntime::init_extension_js`]. This field is populated only if a
   // snapshot is being created.
@@ -715,7 +716,8 @@ impl JsRuntime {
     let op_decls =
       extension_set::init_ops(crate::ops_builtin::BUILTIN_OPS, &mut extensions);
 
-    let op_driver = Rc::new(OpDriverImpl::default());
+    let (op_driver, op_driver_poll_task) = OpDriverImpl::new();
+    let op_driver = Rc::new(op_driver);
     let op_metrics_factory_fn = options.op_metrics_factory_fn.take();
     let get_error_class_fn = options.get_error_class_fn.unwrap_or(&|_| "Error");
 
@@ -942,6 +944,7 @@ impl JsRuntime {
         cpp_heap: ManuallyDrop::new(cpp_heap),
       },
       allocations: isolate_allocations,
+      op_driver_poll_task: Box::pin(op_driver_poll_task),
       files_loaded_from_fs_during_snapshot: vec![],
       is_main_runtime: options.is_main,
     };
@@ -1711,7 +1714,15 @@ impl JsRuntime {
     Self::with_context_scope(
       isolate,
       self.inner.main_realm.context_ptr(),
-      move |scope| self.poll_event_loop_inner(cx, scope, poll_options),
+      move |scope| {
+        while self.op_driver_poll_task.as_mut().poll(cx).is_ready() {}
+
+        let res = self.poll_event_loop_inner(cx, scope, poll_options);
+
+        while self.op_driver_poll_task.as_mut().poll(cx).is_ready() {}
+
+        res
+      },
     )
   }
 
